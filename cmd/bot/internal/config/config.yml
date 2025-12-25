@@ -1,0 +1,14 @@
+server:
+  port: 8080
+  public_url: ""                 # например https://xxxx.trycloudflare.com
+  telegram_webhook_path: "/api/v1/telegram/webhook"
+  github_webhook_path: "/api/v1/github/webhook"
+
+telegram:
+  bot_token: ""                  # задавай через env
+
+github:
+  secret: ""                     # задавай через env
+
+log:
+  level: "info"
