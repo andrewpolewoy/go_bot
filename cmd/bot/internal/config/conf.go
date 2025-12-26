@@ -13,6 +13,11 @@ type Config struct {
 		PublicURL           string `mapstructure:"public_url"`
 		TelegramWebhookPath string `mapstructure:"telegram_webhook_path"`
 		GithubWebhookPath   string `mapstructure:"github_webhook_path"`
+		TLS                 struct {
+			Enabled  bool   `mapstructure:"enabled"`
+			CertFile string `mapstructure:"cert_file"`
+			KeyFile  string `mapstructure:"key_file"`
+		} `mapstructure:"tls"`
 	} `mapstructure:"server"`
 
 	Telegram struct {

@@ -1,5 +1,9 @@
 server:
   port: 8080
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
   public_url: ""                 # например https://xxxx.trycloudflare.com
   telegram_webhook_path: "/api/v1/telegram/webhook"
   github_webhook_path: "/api/v1/github/webhook"
