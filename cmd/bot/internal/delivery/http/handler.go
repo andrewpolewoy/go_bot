@@ -76,6 +76,9 @@ type pullRequestPayload struct {
 	PullRequest struct {
 		Title   string `json:"title"`
 		HTMLURL string `json:"html_url"`
+		User    struct {
+			Login string `json:"login"`
+		} `json:"user"`
 	} `json:"pull_request"`
 	Assignee *struct {
 		Login string `json:"login"`
@@ -119,7 +122,11 @@ type pullRequestReviewPayload struct {
 	PullRequest struct {
 		Title   string `json:"title"`
 		HTMLURL string `json:"html_url"`
+		User    struct {
+			Login string `json:"login"`
+		} `json:"user"`
 	} `json:"pull_request"`
+
 	Reviewer *struct {
 		Login string `json:"login"`
 	} `json:"sender"`
@@ -193,7 +200,7 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 		PullRequest *prWithAuthor `json:"pull_request"`
 	}{PullRequest: &prData})
 
-	assigneeLogin := strings.ToLower(prData.User.Login)
+	assigneeLogin := strings.ToLower(payload.PullRequest.User.Login)
 	if assigneeLogin == "" {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -214,6 +221,9 @@ type pullRequestReviewCommentPayload struct {
 	PullRequest struct {
 		Title   string `json:"title"`
 		HTMLURL string `json:"html_url"`
+		User    struct {
+			Login string `json:"login"`
+		} `json:"user"`
 	} `json:"pull_request"`
 }
 
@@ -255,7 +265,7 @@ func (h *Handler) handlePullRequestReviewComment(w http.ResponseWriter, body []b
 		PullRequest *prWithAuthor `json:"pull_request"`
 	}{PullRequest: &prData})
 
-	assigneeLogin := strings.ToLower(prData.User.Login)
+	assigneeLogin := strings.ToLower(payload.PullRequest.User.Login)
 	if assigneeLogin == "" {
 		w.WriteHeader(http.StatusOK)
 		return
