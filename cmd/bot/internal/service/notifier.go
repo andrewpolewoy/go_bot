@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -9,7 +8,7 @@ import (
 )
 
 type TelegramSender interface {
-	SendMessage(ctx context.Context, chatID int64, text string) error
+	SendMessage(chatID int64, text string) error
 }
 
 type Notifier struct {
@@ -21,7 +20,7 @@ func NewNotifier(users repository.UserRepository, sender TelegramSender) *Notifi
 	return &Notifier{users: users, sender: sender}
 }
 
-func (s *Notifier) SetGitHubLogin(ctx context.Context, tgID int64, login string) error {
+func (s *Notifier) SetGitHubLogin(tgID int64, login string) error {
 	login = strings.TrimSpace(login)
 	if login == "" {
 		return fmt.Errorf("empty login")
@@ -32,7 +31,7 @@ func (s *Notifier) SetGitHubLogin(ctx context.Context, tgID int64, login string)
 	})
 }
 
-func (s *Notifier) GetMe(ctx context.Context, tgID int64) (string, error) {
+func (s *Notifier) GetMe(tgID int64) (string, error) {
 	b, err := s.users.GetByTelegramID(tgID)
 	if err != nil {
 		return "", err
@@ -40,14 +39,14 @@ func (s *Notifier) GetMe(ctx context.Context, tgID int64) (string, error) {
 	return b.GitHubLogin, nil
 }
 
-func (s *Notifier) NotifyAssignee(ctx context.Context, assigneeLogin, msg string) error {
+func (s *Notifier) NotifyAssignee(assigneeLogin, msg string) error {
 	bindings, err := s.users.GetByGitHubLogin(assigneeLogin)
 	if err != nil {
 		return err
 	}
 
 	for _, b := range bindings {
-		if err := s.sender.SendMessage(ctx, b.TelegramID, msg); err != nil {
+		if err := s.sender.SendMessage(b.TelegramID, msg); err != nil {
 			return fmt.Errorf("send telegram message to %d: %w", b.TelegramID, err)
 		}
 	}

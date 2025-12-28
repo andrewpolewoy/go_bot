@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -18,7 +17,7 @@ func NewSender(bot *tgbotapi.BotAPI) *Sender {
 	return &Sender{bot: bot}
 }
 
-func (s *Sender) SendMessage(ctx context.Context, chatID int64, text string) error {
+func (s *Sender) SendMessage(chatID int64, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 	_, err := s.bot.Send(msg)
 	return err
@@ -38,7 +37,6 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 		return
 	}
 
-	ctx := context.TODO()
 	chatID := update.Message.Chat.ID
 	text := strings.TrimSpace(update.Message.Text)
 
@@ -56,7 +54,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			reply = "Использование: /setgithub <github_login>"
 		} else {
 			login := parts[1]
-			if err := h.svc.SetGitHubLogin(ctx, chatID, login); err != nil {
+			if err := h.svc.SetGitHubLogin(chatID, login); err != nil {
 				reply = fmt.Sprintf("Ошибка: %v", err)
 			} else {
 				reply = "Ок, сохранил."
@@ -64,7 +62,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 		}
 
 	case text == "/me":
-		login, err := h.svc.GetMe(ctx, chatID)
+		login, err := h.svc.GetMe(chatID)
 		if err != nil {
 			reply = "Пока не задан github login. Используй /setgithub <login>."
 		} else {

@@ -105,7 +105,6 @@ func (h *Handler) handlePullRequest(w http.ResponseWriter, body []byte) {
 	if err := h.notifier.NotifyAssignee(payload.Assignee.Login, msg); err != nil {
 
 		h.logger.Printf("[github] notify assignee error: %v", err)
-		// не паникуем: GitHub всё равно считает delivery успешной при 2xx
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -114,14 +113,13 @@ func (h *Handler) handlePullRequest(w http.ResponseWriter, body []byte) {
 type pullRequestReviewPayload struct {
 	Action string `json:"action"`
 	Review struct {
-		State string `json:"state"` // approved, changes_requested, commented
+		State string `json:"state"`
 		Body  string `json:"body"`
 	} `json:"review"`
 	PullRequest struct {
 		Title   string `json:"title"`
 		HTMLURL string `json:"html_url"`
 	} `json:"pull_request"`
-	// кто автор review — можно использовать позже
 	Reviewer *struct {
 		Login string `json:"login"`
 	} `json:"sender"`
@@ -135,7 +133,6 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 		return
 	}
 
-	// Нас интересует только submitted, чтобы не ловить черновики.
 	if payload.Action != "submitted" {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -147,7 +144,6 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 		return
 	}
 
-	// Текст review (может быть пустым)
 	reviewText := trimText(payload.Review.Body, 400)
 
 	var msgPrefix string
@@ -159,7 +155,6 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 	case "commented":
 		msgPrefix = "Новый review по вашему PR"
 	default:
-		// неизвестный статус — игнорируем
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -167,7 +162,6 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 	title := payload.PullRequest.Title
 	url := payload.PullRequest.HTMLURL
 
-	// Формируем финальный текст нотификации
 	var textBuilder strings.Builder
 	textBuilder.WriteString(msgPrefix)
 	textBuilder.WriteString(": ")
@@ -201,7 +195,6 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 
 	assigneeLogin := strings.ToLower(prData.User.Login)
 	if assigneeLogin == "" {
-		// Если нет автора/assignee — просто подтверждаем delivery.
 		w.WriteHeader(http.StatusOK)
 		return
 	}
