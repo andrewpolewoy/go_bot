@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +11,7 @@ import (
 )
 
 type Notifier interface {
-	NotifyAssignee(ctx context.Context, assigneeLogin, msg string) error
+	NotifyAssignee(assigneeLogin, msg string) error
 }
 
 type Handler struct {
@@ -39,13 +38,14 @@ func (h *Handler) GitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer func() { _ = r.Body.Close() }()
 	body, err := io.ReadAll(r.Body)
+
 	if err != nil {
 		h.logger.Printf("[github] read body error: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	defer func() { _ = r.Body.Close() }()
 
 	if err := validateGitHubSignature(body, r.Header.Get("X-Hub-Signature-256"), h.secret); err != nil {
 		if errors.Is(err, ErrMissingSignature) {
@@ -101,10 +101,8 @@ func (h *Handler) handlePullRequest(w http.ResponseWriter, body []byte) {
 		return
 	}
 
-	ctx := context.Background()
-
 	msg := fmt.Sprintf("На вас назначен pull request: %s — %s", payload.PullRequest.Title, payload.PullRequest.HTMLURL)
-	if err := h.notifier.NotifyAssignee(ctx, payload.Assignee.Login, msg); err != nil {
+	if err := h.notifier.NotifyAssignee(payload.Assignee.Login, msg); err != nil {
 
 		h.logger.Printf("[github] notify assignee error: %v", err)
 		// не паникуем: GitHub всё равно считает delivery успешной при 2xx
@@ -208,8 +206,7 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 		return
 	}
 
-	ctx := context.Background()
-	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, textBuilder.String()); err != nil {
+	if err := h.notifier.NotifyAssignee(assigneeLogin, textBuilder.String()); err != nil {
 		h.logger.Printf("[github] notify assignee (review) error: %v", err)
 	}
 
@@ -225,7 +222,6 @@ type pullRequestReviewCommentPayload struct {
 		Title   string `json:"title"`
 		HTMLURL string `json:"html_url"`
 	} `json:"pull_request"`
-	// аналогично — можно достать автора/assignee через pull_request.user / assignee
 }
 
 func (h *Handler) handlePullRequestReviewComment(w http.ResponseWriter, body []byte) {
@@ -256,10 +252,6 @@ func (h *Handler) handlePullRequestReviewComment(w http.ResponseWriter, body []b
 		sb.WriteString(commentText)
 	}
 
-	// Тут та же история с тем, на кого триггерить:
-	// нужно решить, кто считается "назначенным ревьюером" и по какому логину искать.
-	// Для задания можно считать, что комментарии летят автору PR (pull_request.user.login).
-
 	type prWithAuthor struct {
 		User struct {
 			Login string `json:"login"`
@@ -276,8 +268,7 @@ func (h *Handler) handlePullRequestReviewComment(w http.ResponseWriter, body []b
 		return
 	}
 
-	ctx := context.Background()
-	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, sb.String()); err != nil {
+	if err := h.notifier.NotifyAssignee(assigneeLogin, sb.String()); err != nil {
 		h.logger.Printf("[github] notify assignee (review_comment) error: %v", err)
 	}
 
