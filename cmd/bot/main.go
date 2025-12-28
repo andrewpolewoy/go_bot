@@ -1,7 +1,13 @@
 package main
 
-import "github.com/andrewpolewoy/go_bot/cmd/bot/internal/app"
+import (
+	"log"
+
+	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/app"
+)
 
 func main() {
-	app.Start()
+	if err := app.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
