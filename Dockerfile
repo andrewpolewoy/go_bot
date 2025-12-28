@@ -1,22 +1,25 @@
-FROM golang:1.23 AS builder
+# syntax=docker/dockerfile:1
 
-WORKDIR /app
+FROM --platform=$BUILDPLATFORM golang:1.24 AS build
+WORKDIR /src
 
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bot ./cmd/bot
+# BuildKit provides TARGETOS/TARGETARCH for multi-platform builds.
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w" -o /out/bot ./cmd/bot
 
 FROM gcr.io/distroless/base-debian12
+WORKDIR /
 
-WORKDIR /app
-COPY --from=builder /app/bot /app/bot
-COPY config/config.yml.example /app/config/config.yml
-
-ENV CRNB_SERVER_PORT=8080
+COPY --from=build /out/bot /bot
 
 EXPOSE 8080
-
-ENTRYPOINT ["/app/bot"]
+USER nonroot:nonroot
+ENTRYPOINT ["/bot"]
