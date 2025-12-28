@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -10,26 +9,32 @@ import (
 )
 
 type App struct {
-	log    *Logger      // см. ниже
-	cfg    *Config      // обёртка вокруг твоего config.Config
-	server *http.Server // HTTP сервер с Telegram/GitHub handlers
+	log    *Logger
+	cfg    *Config
+	server *http.Server
 }
 
-func Start() {
+func Start() error {
 	a := &App{}
 	if err := a.Bootstrap(); err != nil {
-		log.Fatalf("bootstrap failed: %v", err)
+		return err
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	go a.Run()
+	runErr := make(chan error, 1)
+	go func() { runErr <- a.Run() }()
 
-	<-ctx.Done()
-	if err := a.Shutdown(10 * time.Second); err != nil {
-		a.log.Error("shutdown error", "err", err)
-	} else {
-		a.log.Info("bot gracefully stopped")
+	select {
+	case <-ctx.Done():
+	case err := <-runErr:
+		_ = a.Shutdown(10 * time.Second)
+		return err
 	}
+
+	if err := a.Shutdown(10 * time.Second); err != nil {
+		return err
+	}
+	return nil
 }

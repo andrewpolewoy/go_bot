@@ -40,14 +40,16 @@ func (s *Notifier) GetMe(ctx context.Context, tgID int64) (string, error) {
 	return b.GitHubLogin, nil
 }
 
-func (s *Notifier) NotifyAssignee(ctx context.Context, assigneeLogin, title, url string) error {
+func (s *Notifier) NotifyAssignee(ctx context.Context, assigneeLogin, msg string) error {
 	bindings, err := s.users.GetByGitHubLogin(assigneeLogin)
 	if err != nil {
 		return err
 	}
-	msg := fmt.Sprintf("На вас назначен pull request: %s — %s", title, url)
+
 	for _, b := range bindings {
-		_ = s.sender.SendMessage(ctx, b.TelegramID, msg)
+		if err := s.sender.SendMessage(ctx, b.TelegramID, msg); err != nil {
+			return fmt.Errorf("send telegram message to %d: %w", b.TelegramID, err)
+		}
 	}
 	return nil
 }

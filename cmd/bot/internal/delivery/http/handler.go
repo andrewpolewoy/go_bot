@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 )
 
 type Notifier interface {
-	NotifyAssignee(ctx context.Context, assigneeLogin, title, url string) error
+	NotifyAssignee(ctx context.Context, assigneeLogin, msg string) error
 }
 
 type Handler struct {
@@ -44,7 +45,7 @@ func (h *Handler) GitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	if err := validateGitHubSignature(body, r.Header.Get("X-Hub-Signature-256"), h.secret); err != nil {
 		if errors.Is(err, ErrMissingSignature) {
@@ -101,7 +102,10 @@ func (h *Handler) handlePullRequest(w http.ResponseWriter, body []byte) {
 	}
 
 	ctx := context.Background()
-	if err := h.notifier.NotifyAssignee(ctx, payload.Assignee.Login, payload.PullRequest.Title, payload.PullRequest.HTMLURL); err != nil {
+
+	msg := fmt.Sprintf("На вас назначен pull request: %s — %s", payload.PullRequest.Title, payload.PullRequest.HTMLURL)
+	if err := h.notifier.NotifyAssignee(ctx, payload.Assignee.Login, msg); err != nil {
+
 		h.logger.Printf("[github] notify assignee error: %v", err)
 		// не паникуем: GitHub всё равно считает delivery успешной при 2xx
 	}
@@ -205,7 +209,7 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 	}
 
 	ctx := context.Background()
-	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, title, textBuilder.String()); err != nil {
+	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, textBuilder.String()); err != nil {
 		h.logger.Printf("[github] notify assignee (review) error: %v", err)
 	}
 
@@ -273,7 +277,7 @@ func (h *Handler) handlePullRequestReviewComment(w http.ResponseWriter, body []b
 	}
 
 	ctx := context.Background()
-	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, title, sb.String()); err != nil {
+	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, sb.String()); err != nil {
 		h.logger.Printf("[github] notify assignee (review_comment) error: %v", err)
 	}
 

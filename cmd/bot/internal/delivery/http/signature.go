@@ -16,8 +16,7 @@ var (
 
 func validateGitHubSignature(body []byte, sigHeader string, secret []byte) error {
 	if len(secret) == 0 {
-		// без секрета в конфиге — в проде лучше фейлить, но для локалки можно пропустить
-		return nil
+		return errors.New("github webhook secret is empty")
 	}
 
 	const prefix = "sha256="

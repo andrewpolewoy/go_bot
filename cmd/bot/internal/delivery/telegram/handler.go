@@ -38,7 +38,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	chatID := update.Message.Chat.ID
 	text := strings.TrimSpace(update.Message.Text)
 
@@ -72,7 +72,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 		}
 
 	default:
-		return // игнорируем неизвестные команды
+		return
 	}
 
 	msg := tgbotapi.NewMessage(chatID, reply)

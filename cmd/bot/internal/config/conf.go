@@ -49,9 +49,16 @@ func Load() (Config, error) {
 	v.SetEnvPrefix("CRNB")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
-	v.BindEnv("telegram.bot_token", "CRNB_TELEGRAM_BOT_TOKEN")
-	v.BindEnv("github.secret", "CRNB_GITHUB_SECRET")
-	v.BindEnv("server.public_url", "CRNB_SERVER_PUBLIC_URL")
+	if err := v.BindEnv("telegram.bot_token", "CRNB_TELEGRAM_BOT_TOKEN"); err != nil {
+		return Config{}, fmt.Errorf("bind env CRNB_TELEGRAM_BOT_TOKEN: %w", err)
+	}
+	if err := v.BindEnv("github.secret", "CRNB_GITHUB_SECRET"); err != nil {
+		return Config{}, fmt.Errorf("bind env CRNB_GITHUB_SECRET: %w", err)
+	}
+	if err := v.BindEnv("server.public_url", "CRNB_SERVER_PUBLIC_URL"); err != nil {
+		return Config{}, fmt.Errorf("bind env CRNB_SERVER_PUBLIC_URL: %w", err)
+	}
+
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("unmarshal config: %w", err)
