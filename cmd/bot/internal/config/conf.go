@@ -31,6 +31,10 @@ type Config struct {
 	Log struct {
 		Level string `mapstructure:"level"`
 	} `mapstructure:"log"`
+
+	DB struct {
+		DSN string `mapstructure:"dsn"`
+	} `mapstructure:"db"`
 }
 
 func Load() (Config, error) {
@@ -57,6 +61,9 @@ func Load() (Config, error) {
 	}
 	if err := v.BindEnv("server.public_url", "CRNB_SERVER_PUBLIC_URL"); err != nil {
 		return Config{}, fmt.Errorf("bind env CRNB_SERVER_PUBLIC_URL: %w", err)
+	}
+	if err := v.BindEnv("db.dsn", "CRNB_DB_DSN"); err != nil {
+		return Config{}, fmt.Errorf("bind env CRNB_DB_DSN: %w", err)
 	}
 
 	var cfg Config

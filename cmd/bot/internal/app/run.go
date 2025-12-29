@@ -35,6 +35,15 @@ func (a *App) Shutdown(timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	a.log.Info("shutting down http server")
-	return a.server.Shutdown(ctx)
+	if a.server != nil {
+		if err := a.server.Shutdown(ctx); err != nil {
+			return err
+		}
+	}
+
+	if a.db != nil {
+		a.db.Close()
+	}
+
+	return nil
 }

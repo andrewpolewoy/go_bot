@@ -32,17 +32,44 @@ Required:
 - `CRNB_TELEGRAM_BOT_TOKEN`
 - `CRNB_GITHUB_SECRET`
 
+Optional:
+- `CRNB_DB_DSN` — if empty, uses in-memory repository; if set, uses PostgreSQL repository.
+  Example: `postgres://crnbot:crnbot@localhost:5432/crnbot?sslmode=disable`
+
 Runtime:
 - `CRNB_SERVER_PORT` (default: 8080)
 - `CRNB_SERVER_PUBLIC_URL` (used to set Telegram webhook URL, if enabled)
 
+
 ## Run locally (Go)
+Start PostgreSQL (optional):
+```
+docker compose up -d db
+```
+Run migrations (if DB is used):
+```
+make migrate-up
+```
+Run app:
 ```
 export CRNB_TELEGRAM_BOT_TOKEN="..."
 export CRNB_GITHUB_SECRET="..."
-go run ./cmd/bot '
+export CRNB_DB_DSN="postgres://crnbot:crnbot@localhost:5432/crnbot?sslmode=disable" # optional
+go run ./cmd/bot
 ```
+## Migrations
 
+This project uses `golang-migrate` CLI.
+- Migration files live in `./migrations` (`*.up.sql` / `*.down.sql`).
+- Current DB schema version is tracked in DB table `schema_migrations`.
+
+Common commands:
+```
+make migrate-up
+make migrate-down
+make migrate-version
+make migrate-create NAME=add_table_name
+```
 
 ## Expose localhost to GitHub (Cloudflare quick tunnel)
 Cloudflare quick tunnel URL changes on every start.
@@ -74,6 +101,7 @@ Run container:
 docker run --rm -p 8080:8080
 -e CRNB_TELEGRAM_BOT_TOKEN="..."
 -e CRNB_GITHUB_SECRET="..."
+-e CRNB_DB_DSN="postgres://crnbot:crnbot@host.docker.internal:5432/crnbot?sslmode=disable"
 crnbot:local
 ```
 

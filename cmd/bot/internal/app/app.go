@@ -6,12 +6,15 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
 	log    *Logger
 	cfg    *Config
 	server *http.Server
+	db     *pgxpool.Pool
 }
 
 func Start() error {

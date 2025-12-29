@@ -1,12 +1,18 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/repository"
+	pgrepo "github.com/andrewpolewoy/go_bot/cmd/bot/internal/repository/postgres"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -17,7 +23,6 @@ import (
 	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/service"
 )
 
-// простая обёртка, чтобы не тянуть сюда zap; можно заменить на zap.Logger
 type Logger struct {
 	*log.Logger
 }
@@ -30,10 +35,8 @@ type Config struct {
 }
 
 func (a *App) Bootstrap() error {
-	// logger
 	a.log = &Logger{Logger: log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)}
 
-	// config
 	rawCfg, err := appcfg.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -47,7 +50,21 @@ func (a *App) Bootstrap() error {
 	a.log.Info("bootstrapping bot")
 
 	// dependencies
-	repo := memory.NewUserRepo()
+	var repo repository.UserRepository
+
+	if rawCfg.DB.DSN != "" {
+		pool, err := pgxpool.New(context.Background(), rawCfg.DB.DSN)
+		if err != nil {
+			return fmt.Errorf("connect postgres: %w", err)
+		}
+
+		a.db = pool
+		repo = pgrepo.NewUserRepo(pool)
+		a.log.Info("using postgres repository")
+	} else {
+		repo = memory.NewUserRepo()
+		a.log.Info("using memory repository")
+	}
 
 	bot, err := tgbotapi.NewBotAPI(rawCfg.Telegram.BotToken)
 	if err != nil {
