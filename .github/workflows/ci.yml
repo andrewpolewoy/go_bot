@@ -55,6 +55,14 @@ jobs:
       - name: "Debug: resolve postgres"
         run: getent hosts postgres || true && nslookup postgres || true
 
+      - name: "Debug: docker ps"
+        run: docker ps -a
+
+      - name: "Debug: docker networks"
+        run: docker network ls
+      - name: Debug: inspect postgres
+        run: docker inspect ${{ job.services.postgres.id }}
+
       - name: Run migrations
         run: $(go env GOPATH)/bin/migrate -path cmd/bot/migrations -database "${CRNB_DB_DSN}" up
 
