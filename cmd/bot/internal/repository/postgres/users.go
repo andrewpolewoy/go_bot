@@ -12,8 +12,6 @@ import (
 	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/repository"
 )
 
-var ErrNotFound = errors.New("not found")
-
 type UserRepo struct {
 	pool *pgxpool.Pool
 }
@@ -51,7 +49,7 @@ WHERE telegram_id = $1;
 	err := r.pool.QueryRow(context.Background(), q, tgID).Scan(&b.TelegramID, &b.GitHubLogin)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, repository.ErrNotFound
 		}
 		return nil, fmt.Errorf("get by telegram id: %w", err)
 	}

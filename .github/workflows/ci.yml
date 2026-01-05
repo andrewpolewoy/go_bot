@@ -3,27 +3,69 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test ./...
+
+      - name: Unit tests
+        run: go test ./...
+
+  integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: crnbot
+          POSTGRES_USER: crnbot
+          POSTGRES_PASSWORD: crnbot
+        options: >-
+          --health-cmd "pg_isready -U crnbot -d crnbot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Service container is reachable by hostname = service name ("postgres")
+      CRNB_DB_DSN: postgres://crnbot:crnbot@postgres:5432/crnbot?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install migrate
+        run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+      - name: Run migrations
+        run: $(go env GOPATH)/bin/migrate -path migrations -database "${CRNB_DB_DSN}" up
+
+      - name: Integration tests
+        run: go test -tags=integration ./...
 
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
       - uses: golangci/golangci-lint-action@v8
         with:
           version: v2.4.0

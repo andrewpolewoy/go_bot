@@ -1,5 +1,9 @@
 package repository
 
+import "errors"
+
+var ErrNotFound = errors.New("not found")
+
 type UserBinding struct {
 	TelegramID  int64
 	GitHubLogin string
