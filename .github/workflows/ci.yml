@@ -21,6 +21,7 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    container: golang:1.24
 
     services:
       postgres:
@@ -36,32 +37,13 @@ jobs:
           --health-retries 20
 
     env:
-      # Service container is reachable by hostname = service name ("postgres")
       CRNB_DB_DSN: postgres://crnbot:crnbot@postgres:5432/crnbot?sslmode=disable
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
       - name: Install migrate
         run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-      - name: "Debug: show hosts"
-        run: cat /etc/hosts
-
-      - name: "Debug: resolve postgres"
-        run: getent hosts postgres || true && nslookup postgres || true
-
-      - name: "Debug: docker ps"
-        run: docker ps -a
-
-      - name: "Debug: docker networks"
-        run: docker network ls
-      - name: "Debug: inspect postgres"
-        run: docker inspect ${{ job.services.postgres.id }}
 
       - name: Run migrations
         run: $(go env GOPATH)/bin/migrate -path cmd/bot/migrations -database "${CRNB_DB_DSN}" up
