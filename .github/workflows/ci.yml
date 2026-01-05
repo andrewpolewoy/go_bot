@@ -60,7 +60,7 @@ jobs:
 
       - name: "Debug: docker networks"
         run: docker network ls
-      - name: Debug: inspect postgres
+      - name: "Debug: inspect postgres"
         run: docker inspect ${{ job.services.postgres.id }}
 
       - name: Run migrations
