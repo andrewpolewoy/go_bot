@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -27,7 +28,7 @@ func normalizeLogin(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }
 
-func (r *UserRepo) SaveBinding(binding repository.UserBinding) error {
+func (r *UserRepo) SaveBinding(ctx context.Context, binding repository.UserBinding) error {
 	login := normalizeLogin(binding.GitHubLogin)
 	if login == "" {
 		return errors.New("github login is empty")
@@ -61,7 +62,7 @@ func (r *UserRepo) SaveBinding(binding repository.UserBinding) error {
 	return nil
 }
 
-func (r *UserRepo) GetByTelegramID(tgID int64) (*repository.UserBinding, error) {
+func (r *UserRepo) GetByTelegramID(ctx context.Context, tgID int64) (*repository.UserBinding, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -73,7 +74,7 @@ func (r *UserRepo) GetByTelegramID(tgID int64) (*repository.UserBinding, error) 
 	return &cp, nil
 }
 
-func (r *UserRepo) GetByGitHubLogin(login string) ([]repository.UserBinding, error) {
+func (r *UserRepo) GetByGitHubLogin(ctx context.Context, login string) ([]repository.UserBinding, error) {
 	login = normalizeLogin(login)
 
 	r.mu.RLock()

@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -18,7 +19,7 @@ type notifierMock struct {
 	err error
 }
 
-func (n *notifierMock) NotifyAssignee(login, msg string) error {
+func (n *notifierMock) NotifyAssignee(ctx context.Context, login, msg string) error {
 	n.calls = append(n.calls, struct {
 		login string
 		msg   string

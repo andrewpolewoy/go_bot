@@ -70,5 +70,19 @@ func Load() (Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("unmarshal config: %w", err)
 	}
+	if err := cfg.Validate(); err != nil {
+		return Config{}, fmt.Errorf("config validation failed: %w", err)
+	}
+
 	return cfg, nil
+}
+
+func (c *Config) Validate() error {
+	if c.Telegram.BotToken == "" {
+		return fmt.Errorf("telegram.bot_token is required")
+	}
+	if c.Github.Secret == "" {
+		return fmt.Errorf("github.secret is required")
+	}
+	return nil
 }

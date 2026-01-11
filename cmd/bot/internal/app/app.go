@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/logger"
 )
 
 type App struct {
-	log    *Logger
+	log    logger.Logger
 	cfg    *Config
 	server *http.Server
 	db     *pgxpool.Pool

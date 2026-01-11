@@ -1,10 +1,11 @@
 package telegram
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"strings"
 
+	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/logger"
 	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/service"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -24,12 +25,16 @@ func (s *Sender) SendMessage(chatID int64, text string) error {
 }
 
 type Handler struct {
-	svc *service.Notifier
-	bot *tgbotapi.BotAPI
+	svc    *service.Notifier
+	bot    *tgbotapi.BotAPI
+	logger logger.Logger
 }
 
-func NewHandler(svc *service.Notifier, bot *tgbotapi.BotAPI) *Handler {
-	return &Handler{svc: svc, bot: bot}
+func NewHandler(svc *service.Notifier, bot *tgbotapi.BotAPI, log logger.Logger) *Handler {
+	if log == nil {
+		log = logger.NewDefault()
+	}
+	return &Handler{svc: svc, bot: bot, logger: log}
 }
 
 func (h *Handler) HandleUpdate(update tgbotapi.Update) {
@@ -40,7 +45,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 	chatID := update.Message.Chat.ID
 	text := strings.TrimSpace(update.Message.Text)
 
-	log.Printf("received message: %s from %d", text, chatID)
+	h.logger.Debug("received telegram message", "text", text, "chat_id", chatID)
 
 	var reply string
 
@@ -48,13 +53,14 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 	case text == "/start":
 		reply = "Привет! Команды: /setgithub <login>, /me"
 
-	case strings.HasPrefix(text, "/setgithub"):
+		case strings.HasPrefix(text, "/setgithub"):
 		parts := strings.Fields(text)
 		if len(parts) != 2 {
 			reply = "Использование: /setgithub <github_login>"
 		} else {
 			login := parts[1]
-			if err := h.svc.SetGitHubLogin(chatID, login); err != nil {
+			ctx := context.Background()
+			if err := h.svc.SetGitHubLogin(ctx, chatID, login); err != nil {
 				reply = fmt.Sprintf("Ошибка: %v", err)
 			} else {
 				reply = "Ок, сохранил."
@@ -62,7 +68,8 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 		}
 
 	case text == "/me":
-		login, err := h.svc.GetMe(chatID)
+		ctx := context.Background()
+		login, err := h.svc.GetMe(ctx, chatID)
 		if err != nil {
 			reply = "Пока не задан github login. Используй /setgithub <login>."
 		} else {
@@ -74,5 +81,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 	}
 
 	msg := tgbotapi.NewMessage(chatID, reply)
-	_, _ = h.bot.Send(msg)
+	if _, err := h.bot.Send(msg); err != nil {
+		h.logger.Error("failed to send telegram message", "err", err, "chat_id", chatID)
+	}
 }

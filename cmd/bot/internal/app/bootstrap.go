@@ -3,10 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,29 +17,28 @@ import (
 	appcfg "github.com/andrewpolewoy/go_bot/cmd/bot/internal/config"
 	httpdelivery "github.com/andrewpolewoy/go_bot/cmd/bot/internal/delivery/http"
 	tgdelivery "github.com/andrewpolewoy/go_bot/cmd/bot/internal/delivery/telegram"
+	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/logger"
 	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/repository/memory"
 	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/service"
 )
-
-type Logger struct {
-	*log.Logger
-}
-
-func (l *Logger) Info(msg string, kv ...any)  { l.Println(append([]any{"INFO:", msg}, kv...)...) }
-func (l *Logger) Error(msg string, kv ...any) { l.Println(append([]any{"ERROR:", msg}, kv...)...) }
 
 type Config struct {
 	Raw appcfg.Config
 }
 
 func (a *App) Bootstrap() error {
-	a.log = &Logger{Logger: log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)}
-
 	rawCfg, err := appcfg.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 	a.cfg = &Config{Raw: rawCfg}
+
+	// Initialize logger with level from config
+	logLevel := logger.Level(rawCfg.Log.Level)
+	if logLevel == "" {
+		logLevel = logger.LevelInfo
+	}
+	a.log = logger.New(logLevel)
 
 	if rawCfg.Telegram.BotToken == "" {
 		return fmt.Errorf("telegram bot token is empty")
@@ -73,10 +70,10 @@ func (a *App) Bootstrap() error {
 	bot.Debug = false
 
 	sender := tgdelivery.NewSender(bot)
-	svc := service.NewNotifier(repo, sender)
-	tgHandler := tgdelivery.NewHandler(svc, bot)
+	svc := service.NewNotifier(repo, sender, a.log)
+	tgHandler := tgdelivery.NewHandler(svc, bot, a.log)
 
-	ghHandler := httpdelivery.NewHandler(svc, rawCfg.Github.Secret, a.log.Logger)
+	ghHandler := httpdelivery.NewHandler(svc, rawCfg.Github.Secret, a.log)
 
 	// webhook setup (Telegram)
 	if rawCfg.Server.PublicURL != "" {

@@ -1,6 +1,9 @@
 package repository
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 var ErrNotFound = errors.New("not found")
 
@@ -10,7 +13,7 @@ type UserBinding struct {
 }
 
 type UserRepository interface {
-	SaveBinding(binding UserBinding) error
-	GetByGitHubLogin(login string) ([]UserBinding, error)
-	GetByTelegramID(tgID int64) (*UserBinding, error)
+	SaveBinding(ctx context.Context, binding UserBinding) error
+	GetByGitHubLogin(ctx context.Context, login string) ([]UserBinding, error)
+	GetByTelegramID(ctx context.Context, tgID int64) (*UserBinding, error)
 }

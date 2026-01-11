@@ -37,7 +37,7 @@ func (a *App) Shutdown(timeout time.Duration) error {
 
 	if a.server != nil {
 		if err := a.server.Shutdown(ctx); err != nil {
-			return err
+			a.log.Error("http server shutdown error", "err", err)
 		}
 	}
 

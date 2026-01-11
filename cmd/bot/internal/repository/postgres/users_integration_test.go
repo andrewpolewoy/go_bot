@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -14,8 +15,9 @@ func TestUserRepo_SaveAndGetByTelegramID(t *testing.T) {
 	repo := NewUserRepo(pool)
 
 	tgID := time.Now().UnixNano()
+	ctx := context.Background()
 
-	err := repo.SaveBinding(repository.UserBinding{
+	err := repo.SaveBinding(ctx, repository.UserBinding{
 		TelegramID:  tgID,
 		GitHubLogin: "AndrewPolewoy",
 	})
@@ -23,7 +25,7 @@ func TestUserRepo_SaveAndGetByTelegramID(t *testing.T) {
 		t.Fatalf("SaveBinding: %v", err)
 	}
 
-	got, err := repo.GetByTelegramID(tgID)
+	got, err := repo.GetByTelegramID(ctx, tgID)
 	if err != nil {
 		t.Fatalf("GetByTelegramID: %v", err)
 	}
@@ -43,8 +45,9 @@ func TestUserRepo_GetByTelegramID_NotFound(t *testing.T) {
 	repo := NewUserRepo(pool)
 
 	tgID := time.Now().UnixNano()
+	ctx := context.Background()
 
-	_, err := repo.GetByTelegramID(tgID)
+	_, err := repo.GetByTelegramID(ctx, tgID)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -59,12 +62,13 @@ func TestUserRepo_GetByGitHubLogin(t *testing.T) {
 
 	suffix := time.Now().UnixNano()
 	login := fmt.Sprintf("user_%d", suffix)
+	ctx := context.Background()
 
 	// Два разных tgID → один github login
-	_ = repo.SaveBinding(repository.UserBinding{TelegramID: suffix + 1, GitHubLogin: login})
-	_ = repo.SaveBinding(repository.UserBinding{TelegramID: suffix + 2, GitHubLogin: login})
+	_ = repo.SaveBinding(ctx, repository.UserBinding{TelegramID: suffix + 1, GitHubLogin: login})
+	_ = repo.SaveBinding(ctx, repository.UserBinding{TelegramID: suffix + 2, GitHubLogin: login})
 
-	got, err := repo.GetByGitHubLogin(login)
+	got, err := repo.GetByGitHubLogin(ctx, login)
 	if err != nil {
 		t.Fatalf("GetByGitHubLogin: %v", err)
 	}

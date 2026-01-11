@@ -1,34 +1,36 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
+
+	"github.com/andrewpolewoy/go_bot/cmd/bot/internal/logger"
 )
 
 type Notifier interface {
-	NotifyAssignee(assigneeLogin, msg string) error
+	NotifyAssignee(ctx context.Context, assigneeLogin, msg string) error
 }
 
 type Handler struct {
 	notifier Notifier
 	secret   []byte
-	logger   *log.Logger
+	logger   logger.Logger
 }
 
-func NewHandler(n Notifier, githubSecret string, logger *log.Logger) *Handler {
-	if logger == nil {
-		logger = log.Default()
+func NewHandler(n Notifier, githubSecret string, log logger.Logger) *Handler {
+	if log == nil {
+		log = logger.NewDefault()
 	}
 
 	return &Handler{
 		notifier: n,
 		secret:   []byte(strings.TrimSpace(githubSecret)),
-		logger:   logger,
+		logger:   log,
 	}
 }
 
@@ -42,16 +44,16 @@ func (h *Handler) GitHubWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		h.logger.Printf("[github] read body error: %v", err)
+		h.logger.Error("github read body error", "err", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if err := validateGitHubSignature(body, r.Header.Get("X-Hub-Signature-256"), h.secret); err != nil {
 		if errors.Is(err, ErrMissingSignature) {
-			h.logger.Printf("[github] missing signature")
+			h.logger.Error("github missing signature")
 		} else {
-			h.logger.Printf("[github] bad signature: %v", err)
+			h.logger.Error("github bad signature", "err", err)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -88,7 +90,7 @@ type pullRequestPayload struct {
 func (h *Handler) handlePullRequest(w http.ResponseWriter, body []byte) {
 	var payload pullRequestPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		h.logger.Printf("[github] pull_request unmarshal error: %v", err)
+		h.logger.Error("github pull_request unmarshal error", "err", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -99,15 +101,15 @@ func (h *Handler) handlePullRequest(w http.ResponseWriter, body []byte) {
 	}
 
 	if payload.Assignee == nil || payload.Assignee.Login == "" {
-		h.logger.Printf("[github] assigned action without assignee")
+		h.logger.Error("github assigned action without assignee")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	msg := fmt.Sprintf("На вас назначен pull request: %s — %s", payload.PullRequest.Title, payload.PullRequest.HTMLURL)
-	if err := h.notifier.NotifyAssignee(payload.Assignee.Login, msg); err != nil {
-
-		h.logger.Printf("[github] notify assignee error: %v", err)
+	ctx := context.Background()
+	if err := h.notifier.NotifyAssignee(ctx, payload.Assignee.Login, msg); err != nil {
+		h.logger.Error("github notify assignee error", "err", err, "login", payload.Assignee.Login)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -135,7 +137,7 @@ type pullRequestReviewPayload struct {
 func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 	var payload pullRequestReviewPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		h.logger.Printf("[github] pull_request_review unmarshal error: %v", err)
+		h.logger.Error("github pull_request_review unmarshal error", "err", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -190,24 +192,15 @@ func (h *Handler) handlePullRequestReview(w http.ResponseWriter, body []byte) {
 	//
 	// Ниже — вариант с author.login, если ты решишь маппить на него.
 
-	type prWithAuthor struct {
-		User struct {
-			Login string `json:"login"`
-		} `json:"user"`
-	}
-	var prData prWithAuthor
-	_ = json.Unmarshal(body, &struct {
-		PullRequest *prWithAuthor `json:"pull_request"`
-	}{PullRequest: &prData})
-
 	assigneeLogin := strings.ToLower(payload.PullRequest.User.Login)
 	if assigneeLogin == "" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	if err := h.notifier.NotifyAssignee(assigneeLogin, textBuilder.String()); err != nil {
-		h.logger.Printf("[github] notify assignee (review) error: %v", err)
+	ctx := context.Background()
+	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, textBuilder.String()); err != nil {
+		h.logger.Error("github notify assignee (review) error", "err", err, "login", assigneeLogin)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -230,7 +223,7 @@ type pullRequestReviewCommentPayload struct {
 func (h *Handler) handlePullRequestReviewComment(w http.ResponseWriter, body []byte) {
 	var payload pullRequestReviewCommentPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		h.logger.Printf("[github] pull_request_review_comment unmarshal error: %v", err)
+		h.logger.Error("github pull_request_review_comment unmarshal error", "err", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -255,24 +248,15 @@ func (h *Handler) handlePullRequestReviewComment(w http.ResponseWriter, body []b
 		sb.WriteString(commentText)
 	}
 
-	type prWithAuthor struct {
-		User struct {
-			Login string `json:"login"`
-		} `json:"user"`
-	}
-	var prData prWithAuthor
-	_ = json.Unmarshal(body, &struct {
-		PullRequest *prWithAuthor `json:"pull_request"`
-	}{PullRequest: &prData})
-
 	assigneeLogin := strings.ToLower(payload.PullRequest.User.Login)
 	if assigneeLogin == "" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	if err := h.notifier.NotifyAssignee(assigneeLogin, sb.String()); err != nil {
-		h.logger.Printf("[github] notify assignee (review_comment) error: %v", err)
+	ctx := context.Background()
+	if err := h.notifier.NotifyAssignee(ctx, assigneeLogin, sb.String()); err != nil {
+		h.logger.Error("github notify assignee (review_comment) error", "err", err, "login", assigneeLogin)
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -24,7 +24,7 @@ func normalizeLogin(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }
 
-func (r *UserRepo) SaveBinding(binding repository.UserBinding) error {
+func (r *UserRepo) SaveBinding(ctx context.Context, binding repository.UserBinding) error {
 	login := normalizeLogin(binding.GitHubLogin)
 	if login == "" {
 		return errors.New("github login is empty")
@@ -35,18 +35,18 @@ INSERT INTO user_bindings (telegram_id, github_login)
 VALUES ($1, $2)
 ON CONFLICT (telegram_id) DO UPDATE SET github_login = EXCLUDED.github_login;
 `
-	_, err := r.pool.Exec(context.Background(), q, binding.TelegramID, login)
+	_, err := r.pool.Exec(ctx, q, binding.TelegramID, login)
 	return err
 }
 
-func (r *UserRepo) GetByTelegramID(tgID int64) (*repository.UserBinding, error) {
+func (r *UserRepo) GetByTelegramID(ctx context.Context, tgID int64) (*repository.UserBinding, error) {
 	const q = `
 SELECT telegram_id, github_login
 FROM user_bindings
 WHERE telegram_id = $1;
 `
 	var b repository.UserBinding
-	err := r.pool.QueryRow(context.Background(), q, tgID).Scan(&b.TelegramID, &b.GitHubLogin)
+	err := r.pool.QueryRow(ctx, q, tgID).Scan(&b.TelegramID, &b.GitHubLogin)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repository.ErrNotFound
@@ -56,7 +56,7 @@ WHERE telegram_id = $1;
 	return &b, nil
 }
 
-func (r *UserRepo) GetByGitHubLogin(login string) ([]repository.UserBinding, error) {
+func (r *UserRepo) GetByGitHubLogin(ctx context.Context, login string) ([]repository.UserBinding, error) {
 	login = normalizeLogin(login)
 
 	const q = `
@@ -64,7 +64,7 @@ SELECT telegram_id, github_login
 FROM user_bindings
 WHERE github_login = $1;
 `
-	rows, err := r.pool.Query(context.Background(), q, login)
+	rows, err := r.pool.Query(ctx, q, login)
 	if err != nil {
 		return nil, fmt.Errorf("get by github login: %w", err)
 	}
